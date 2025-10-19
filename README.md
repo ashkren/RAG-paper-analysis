@@ -129,6 +129,43 @@ p(y|x) = \prod_{i=1}^{|y|} \sum_{z\in \text{top-K}} p_\eta(z|x) \cdot p_\theta(y
 
 ---
 
+## Pseudocode
+
+```text
+Algorithm: Retrieval-Augmented Generation (RAG)
+
+Input:
+    x  ← input query
+    D  ← document index (encoded passages)
+    K  ← number of documents to retrieve
+Output:
+    ŷ ← generated output
+
+---------------------------------------------------
+1.  // Retrieval step
+2.  q ← BERT_q.encode(x)                     // encode query
+3.  z₁,...,z_K ← topK(MIPS(q, D))           // retrieve top-K docs using inner product
+4.  for each document z_i:
+5.      s_i ← similarity(q, z_i)            // compute similarity score
+6.  p(z_i|x) ← softmax(s_i)                 // retrieval probability distribution
+
+---------------------------------------------------
+7.  // Generation step
+8.  for each document z_i:
+9.      context_i ← concat(x, z_i)
+10.     ŷ_i ← BART.generate(context_i)       // conditional generation
+11.     p(y|x,z_i) ← P_BART(ŷ_i|x,z_i)       // model likelihood
+
+---------------------------------------------------
+12. // Marginalization step
+13. p(y|x) ← Σ_i [ p(z_i|x) * p(y|x,z_i) ]   // weighted marginal probability
+
+---------------------------------------------------
+14. // Training (optional)
+15. minimize L = -log p(y|x)                 // marginal log-likelihood loss
+
+```
+
 ## Results Snapshot
 
 **Performance**
