@@ -9,17 +9,16 @@ Large pre-trained language models store vast knowledge but have critical limitat
 **Knowledge Management Issues:**
 - Cannot easily expand or revise memory as the world changes
 - Updating knowledge requires expensive retraining
-- Knowledge becomes stale
 
 **Reliability Issues:**
-- Produce "hallucinations" (plausible but incorrect answers)
+- Produce hallucinations
 - Lag behind task-specific architectures on knowledge-intensive tasks
 - Difficult to verify sources
 
 **Interpretability Issues:**
 - Operate as black boxes
 - Cannot explain why a particular response is generated
-- Cannot provide provenance
+- Cannot provide sources
 
 **The Solution: RAG**
 
@@ -95,34 +94,39 @@ Retrieval-Augmented Generation (RAG) combines two types of memory:
 - Uses same document for entire output sequence
 - Best for single-source, factual answers
 
-\[
-p(y|x) = \sum_{z\in \text{top-K}} p_\eta(z|x) \cdot p_\theta(y|x,z)
-\]
+![equation](https://latex.codecogs.com/svg.image?p(y|x)=\sum_{z\in%20top-K}p_\eta(z|x)\cdot%20p_\theta(y|x,z)%20=%20\sum_{z\in%20top-K}p_\eta(z|x)\prod_{i=1}^{N}p_\theta(y_i|x,z,y_{1:i-1}))
+
 
 **RAG-Token (Token-Level Marginalization)**
 - Can use different documents for each token
 - Best for multi-fact synthesis
 
-\[
-p(y|x) = \prod_{i=1}^{|y|} \sum_{z\in \text{top-K}} p_\eta(z|x) \cdot p_\theta(y_i|x,z,y_{<i})
-\]
+![equation](https://latex.codecogs.com/svg.image?p(y|x)=\prod_{i=1}^{N}\sum_{z\in%20top-K}p_\eta(z|x)p_\theta(y_i|x,z,y_{1:i-1}))
 
-**Training Process**
-- Minimize negative marginal log-likelihood
-- Adam optimizer
-- BERT_d frozen, BERT_q + BART fine-tuned
+
+
+
+### **Training Process**
+
+- **Objective:** Minimize the *negative marginal log-likelihood* of generating the correct output given the retrieved documents.  
+- **Optimizer:** ADAM — chosen for stable and efficient gradient updates.  
+- **Parameter Updates:**  
+  - **BERT₍d₎ (Document Encoder):** *Frozen* during training. Its weights are not updated, preserving its pre-trained representations to maintain retrieval consistency.  
+  - **BERT₍q₎ (Query Encoder):** *Fine-tuned* so the query representations adapt to the specific downstream task.  
+  - **BART (Generator):** *Fine-tuned* to improve sequence generation quality conditioned on the retrieved context.
+
 
 ---
 
-## Key Design Questions
+## Questions
 
-**Q1: Why freeze the document encoder?**
+**Q1: Why are the parameters in the document encoder frozen?**
 - Updating BERT_d requires re-encoding 21M passages each step (prohibitively expensive)
 - Pre-trained DPR is strong enough for retrieval
 - Empirical results show fine-tuning query encoder suffices
 - Trade-off: computational feasibility vs potential performance gains
 
-**Q2: When to use RAG-Sequence vs RAG-Token?**
+**Q2: When would we use RAG-Sequence vs RAG-Token?**
 - **RAG-Sequence:** Short, factual answers from one source
 - **RAG-Token:** Complex answers needing multiple sources
 - Token-level marginalization is more computationally expensive
