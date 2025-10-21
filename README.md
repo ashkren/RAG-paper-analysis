@@ -9,7 +9,7 @@
 - **Solution:** Combine parametric memory (LLM) with non-parametric memory (retrieved documents).
 
 ### Previous Work
-- **REALM** and **ORQA:** Encoder-based models for open-domain extractive QA.  
+- REALM and ORQA: Encoder-based models for open-domain extractive QA.  
 
 ## RAG Overview
 ### **Why is RAG unique?**
@@ -20,19 +20,19 @@
 
 - **Retriever:** $p_{\eta}(z \mid x)$  
   - Returns top-K text passages $z$ given the input query $x$  
-  - Based on **Dense Passage Retrieval (DPR)**  
-  - Uses a **bi-encoder** setup:  
+  - Based on Dense Passage Retrieval (DPR)
+  - Uses a bi-encoder setup:  
     - $q(x)$: Query representation encoded by a BERT-based query encoder  
     - $d(z)$: Document representation encoded by a BERT-based document encoder
       - Builds the document index, which stores dense vector embeddings of all passages
-  - Documents are ranked using **Maximum Inner Product Search (MIPS)** to find the most relevant passages.  
+  - Documents are ranked using Maximum Inner Product Search (MIPS) to find the most relevant passages.  
 
 - **Generator:** $p_{\theta}(y_i \mid x, z, y_{1:i-1})$  
   - Generates each next token $y_i$ based on:  
     - The input query $x$  
     - The retrieved document $z$  
     - All previously generated tokens $y_{1:i-1}$  
-  - Implemented using **BART-large**, a sequence-to-sequence (seq2seq) transformer.  
+  - Implemented using BART-large, a sequence-to-sequence (seq2seq) transformer.  
 
 
 ### Variable Definitions
@@ -66,7 +66,7 @@ This means the final prediction accounts for how likely each document was to be 
 
 ### 2. RAG-Token
 
-- Allows a **different document** to be used for each token.
+- Allows a different document to be used for each token.
 - For each token $y_i$, the model marginalizes across the retrieved documents to compute a single probability distribution for the next token:
 
 $$
@@ -74,33 +74,75 @@ p(y_i \mid x, y_{1:i-1}) = \sum_{z \in \text{top-K}} p_{\eta}(z \mid x) \, p_{\t
 $$
 
 ---
+## RAG Algorithm Pseudocode
 
-## Training
-- Trained end-to-end on input/output pairs without supervision on which docs to retrieve.  
-- Objective: maximize the likelihood of the correct output while marginalizing over top-K docs.  
-- Optimization details:
-- Updates query encoder and generator with SGD using **ADAM** optimizer  
-- Keeps document encoder and index fixed
+### RAG-Sequence
+```
+INPUT: query x, document index D, top K documents
+OUTPUT: generated sequence y
+
+RETRIEVAL PHASE:
+1. Encode query: q = BERT_query(x)
+2. For each document d in D:
+     Compute score = dot_product(q, BERT_doc(d))
+3. Select top K documents with highest scores
+4. Compute retrieval probabilities: p(z|x) = softmax(scores)
+
+GENERATION PHASE:
+5. For each of K documents z_i:
+     a. Concatenate: context = [x, z_i]
+     b. Pass to BART: generate full sequence y_i
+     c. Compute sequence probability: P(y_i | x, z_i) using BART
+     d. Weight by retrieval: prob_i = p(z_i|x) × P(y_i | x, z_i)
+
+MARGINALIZATION:
+6. Sum probabilities across all K documents for each unique sequence:
+     P(y|x) = Σ prob_i
+7. Return sequence with highest probability
+```
 
 ---
 
-## Decoding
+### **RAG-Token**
+```
+INPUT: query x, document index D, top K documents
+OUTPUT: generated sequence y
 
-### RAG-Sequence Decoding
+RETRIEVAL PHASE:
+1. Encode query: q = BERT_query(x)
+2. For each document d in D:
+     Compute score = dot_product(q, BERT_doc(d))
+3. Select top K documents with highest scores
+4. Compute retrieval probabilities: p(z|x) = softmax(scores)
 
-Since the full sequence probability does not factor per token, beam search is run separately for each retrieved document.  
-Each sequence hypothesis is then weighted by its document retrieval probability $p_{\eta}(z \mid x)$ and combined to produce the final result.
+GENERATION PHASE (token-by-token):
+5. Initialize: y = []
+6. For each position i until END token:
+     
+     a. For each of K documents z_j:
+          - Concatenate: context = [x, z_j]
+          - Pass to BART: get next token distribution P(token | x, z_j, y_1:i-1)
+          - Weight by retrieval: dist_j = p(z_j|x) × P(token | x, z_j, y_1:i-1)
+     
+     b. MARGINALIZATION - Sum weighted distributions element-wise:
+          token_dist = Σ dist_j
+     
+     c. Select highest probability token from token_dist
+     
+     d. Append token to sequence: y.append(token)
 
-Two decoding strategies are introduced:
+7. Return y
+```
+---
 
-- **Thorough Decoding** — recomputes probabilities for missing sequences to get exact results.  
-- **Fast Decoding** — approximates missing sequences as zero to speed up inference.
+## Questions
 
-### RAG-Token Decoding
+1) When would you choose RAG-Sequence over RAG-Token, or vice versa? Think about the nature of the task and where the information might come from.
+2) 
 
-For each token, the model marginalizes across the top-K retrieved documents and then selects the next token either by taking the highest probability or by sampling.  
-This process repeats until the output sequence is complete.
+---
 
+## Critical Analysis
 
 ---
 
@@ -120,16 +162,22 @@ This process repeats until the output sequence is complete.
 ## Broader AI Landscape
 
 ### Enabled Modern Systems
-- **Direct precursor to:** ChatGPT with browsing, Bing Chat, Perplexity AI
-- **Template for production RAG:** Legal, medical, enterprise knowledge systems
+- **Direct precursor to** ChatGPT with browsing, Bing Chat, and Perplexity AI  
+- **Template for enterprise RAG pipelines** (legal, medical, internal knowledge systems)
 
-### Solved Core LLM Problems
+### Addressed Key LLM Challenges
 
 | Problem | RAG Solution |
-|:--------|:-------------|
-| Hallucinations | Grounding in retrieved docs |
-| Stale knowledge | Swap index (no retraining) |
-| No provenance | Retrieved docs visible |
+|:---------|:--------------|
+| Hallucinations | Reduces hallucinations by grounding responses in retrieved evidence |
+| Stale knowledge | Enables updates via index swaps — no retraining required |
+| No provenance | Provides transparency through visible retrieved documents |
+
+
+--- 
+## Other Resources
+
+- https://github.com/NirDiamant/RAG_Techniques/tree/main?tab=readme-ov-file
 
 
 
