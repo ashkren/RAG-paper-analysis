@@ -1,12 +1,13 @@
 # Retrieval-Augmented Generation for Knowledge-Intensive Tasks
 
 ## Background
-- Pre-trained large language models (LLMs) store large amounts of factual data in their parameters.  
-- They perform well on downstream NLP tasks but have limitations:
-  - Hard to update or revise memory  
-  - Cannot cite sources or verify provenance  
-  - Prone to hallucinations  
-- **Solution:** Combine parametric memory (LLM) with non-parametric memory (retrieved documents).
+- Large pre-trained language models (LLMs) encode vast amounts of factual knowledge within their parameters.  
+- **The challenge:** While they excel at many NLP tasks, LLMs have inherent limitations:  
+  - Knowledge is static and difficult to update or correct  
+  - Cannot reliably cite sources or provide provenance  
+  - Susceptible to generating hallucinations  
+- **The solution:** Augment LLMs with non-parametric memory by retrieving relevant documents, combining the model’s parametric knowledge with up-to-date external information.
+
 
 ### Previous Work
 - REALM and ORQA: Encoder-based models for open-domain extractive QA.  
@@ -53,131 +54,175 @@
 ## RAG Variants
 
 ### 1. RAG-Sequence
-- Uses the same retrieved document to generate the entire output sequence.
-- Overall probability:
+- Uses **the same retrieved document** to generate the entire output sequence. Once a document is selected, the model conditions the full output on that document.  
+- Marginalizes over the top-K retrieved documents to account for retrieval uncertainty, so the overall probability of generating a sequence is:  
 
 $$
 p(y \mid x) = \sum_{z \in \text{top-K}} p_{\eta}(z \mid x) \, p_{\theta}(y \mid x, z)
 $$
 
-This means the final prediction accounts for how likely each document was to be retrieved and how well each supports generating the output.
+- Suitable when a **single document contains most of the required information**, but may be less flexible if multiple sources are needed.
 
 ---
 
 ### 2. RAG-Token
-
-- Allows a different document to be used for each token.
-- For each token $y_i$, the model marginalizes across the retrieved documents to compute a single probability distribution for the next token:
+- Allows **different documents to influence each token** in the output. For each token, the model marginalizes across the top-K documents to compute the probability of the next token.  
+- Captures fine-grained information from multiple sources, making it more robust when no single document fully answers the query.  
+- The probability for each token is:
 
 $$
 p(y_i \mid x, y_{1:i-1}) = \sum_{z \in \text{top-K}} p_{\eta}(z \mid x) \, p_{\theta}(y_i \mid x, z, y_{1:i-1})
 $$
 
+- Ideal for tasks where **information is scattered across multiple passages**, but computationally more expensive than RAG-Sequence.
+
 ---
+
 ## RAG Algorithm Pseudocode
 
-### RAG-Sequence
-```
-INPUT: query x, document index D, top K documents
-OUTPUT: generated sequence y
+### Algorithm 1: Retriever
+**Dense Passage Retriever (DPR) component**
 
-RETRIEVAL PHASE:
-1. Encode query: q = BERT_query(x)
-2. For each document d in D:
-     Compute score = dot_product(q, BERT_doc(d))
-3. Select top K documents with highest scores
-4. Compute retrieval probabilities: p(z|x) = softmax(scores)
+**Input:** $x \in V^{\*}$, query sequence  
+**Output:** $\tilde{z} \in (V^{\*})^K$, top-K retrieved documents  
+**Output:** $p_\eta \in \mathbb{R}^K$, retrieval probabilities  
+**Parameters:** $\eta$ consisting of $\text{BERT}_q$ parameters for query encoder and $\text{BERT}_d$ parameters for document encoder (frozen)  
+**Hyperparameters:** $K \in \mathbb{N}$, number of documents to retrieve  
+**External:** $D$, document index with precomputed embeddings
 
-GENERATION PHASE:
-5. For each of K documents z_i:
-     a. Concatenate: context = [x, z_i]
-     b. Pass to BART: generate full sequence y_i
-     c. Compute sequence probability: P(y_i | x, z_i) using BART
-     d. Weight by retrieval: prob_i = p(z_i|x) × P(y_i | x, z_i)
+1. $q \leftarrow \text{BERT}_q(x)$
+2. **for** $i \in [|D|]$: $s[i] \leftarrow d[i]^T q$
+3. $\tilde{z}, \text{indices} \leftarrow \text{top-K}(s, D)$
+4. $p_\eta \leftarrow \text{softmax}(s[\text{indices}])$
+5. **return** $\tilde{z}, p_\eta$
 
-MARGINALIZATION:
-6. Sum probabilities across all K documents for each unique sequence:
-     P(y|x) = Σ prob_i
-7. Return sequence with highest probability
-```
+**Where:**
+- $q$: query embedding
+- $d[i]$: precomputed document embedding for document $i$
+- $s[i]$: similarity score between query and document $i$
 
 ---
 
-### **RAG-Token**
-```
-INPUT: query x, document index D, top K documents
-OUTPUT: generated sequence y
+### Algorithm 2: Generator
+**BART-based sequence generator**
 
-RETRIEVAL PHASE:
-1. Encode query: q = BERT_query(x)
-2. For each document d in D:
-     Compute score = dot_product(q, BERT_doc(d))
-3. Select top K documents with highest scores
-4. Compute retrieval probabilities: p(z|x) = softmax(scores)
+**Input:** $x \in V^{\*}$, input sequence  
+**Input:** $z \in V^{\*}$, retrieved document  
+**Input:** $y_{1:i-1} \in V^{\*}$, previous tokens  
+**Output:** $p_\theta \in \Delta(V)$, probability distribution over next token  
+**Parameters:** $\theta$, BART generator parameters
 
-GENERATION PHASE (token-by-token):
-5. Initialize: y = []
-6. For each position i until END token:
-     
-     a. For each of K documents z_j:
-          - Concatenate: context = [x, z_j]
-          - Pass to BART: get next token distribution P(token | x, z_j, y_1:i-1)
-          - Weight by retrieval: dist_j = p(z_j|x) × P(token | x, z_j, y_1:i-1)
-     
-     b. MARGINALIZATION - Sum weighted distributions element-wise:
-          token_dist = Σ dist_j
-     
-     c. Select highest probability token from token_dist
-     
-     d. Append token to sequence: y.append(token)
+1. $c \leftarrow \text{concatenate}(x, z)$
+2. $p_\theta \leftarrow \text{BART}(c, y_{1:i-1} \mid \theta)$
+3. **return** $p_\theta$
 
-7. Return y
-```
+**Where:**
+- $c$: concatenated context (input sequence and retrieved document)
+
+---
+
+### Algorithm 3: RAG-Sequence
+**RAG-Sequence: same document for entire sequence**
+
+**Input:** $x \in V^{\*}$, input sequence  
+**Output:** $p \in \Delta(V^{\*})$, probability over output sequences
+
+1. $\tilde{z}, p_\eta \leftarrow \text{Retriever}(x \mid \eta, D)$
+2. **for** $k \in [K]$:
+   1. $p_k \leftarrow 1$
+   2. **for** $i \in [N]$:
+      1. $p_{\theta,i} \leftarrow \text{Generator}(x, \tilde{z}[k], y_{1:i-1} \mid \theta)$
+      2. $p_k \leftarrow p_k \cdot p_{\theta,i}[y_i]$
+3. **return** $p = \sum_{k=1}^K p_\eta[k] \cdot p_k$
+
+**Where:**
+- $N$: length of output sequence $y$
+- $p_k$: probability of generating sequence $y$ using document $k$
+- $p_{\theta,i}$: probability distribution over tokens at position $i$
+
+**Mathematical formulation:**
+
+$$
+p_{\text{RAG-Sequence}}(y|x) = \sum_{z \in \text{top-k}(p(\cdot|x), Z)} p_\eta(z|x) \prod_{i=1}^N p_\theta(y_i|x, z, y_{1:i-1})
+$$
+
+---
+
+### Algorithm 4: RAG-Token
+**RAG-Token: different document per token**
+
+**Input:** $x \in V^{\*}$, input sequence  
+**Output:** $p \in \Delta(V^{\*})$, probability over output sequences
+
+1. $\tilde{z}, p_\eta \leftarrow \text{Retriever}(x \mid \eta, D)$
+2. $p \leftarrow 1$
+3. **for** $i \in [N]$:
+   1. $p_i \leftarrow 0$
+   2. **for** $k \in [K]$:
+      1. $p_{\theta,i,k} \leftarrow \text{Generator}(x, \tilde{z}[k], y_{1:i-1} \mid \theta)$
+      2. $p_i \leftarrow p_i + p_\eta[k] \cdot p_{\theta,i,k}[y_i]$
+   3. $p \leftarrow p \cdot p_i$
+4. **return** $p$
+
+**Where:**
+- $N$: length of output sequence $y$
+- $p_i$: marginalized probability of token $y_i$ over all documents
+- $p_{\theta,i,k}$: probability distribution over tokens at position $i$ using document $k$
+
+**Mathematical formulation:**
+
+$$
+p_{\text{RAG-Token}}(y|x) = \prod_{i=1}^N \sum_{z \in \text{top-k}(p(\cdot|x), Z)} p_\eta(z|x) \; p_\theta(y_i|x, z, y_{1:i-1})
+$$
+
 ---
 
 ## Questions
 
-1) When would you choose RAG-Sequence over RAG-Token, or vice versa? Think about the nature of the task and where the information might come from.
-2) 
+1) RAG combines retrieval and generation, but the generator’s output quality depends on the relevance of retrieved documents. How might errors in the retrieval step affect the final output, and what strategies could be used to mitigate these errors?
+2) RAG-Sequence uses a single document for the entire output, while RAG-Token can use a different document for each token. What are the trade-offs between these approaches in terms of accuracy, flexibility, and computational cost?
 
 ---
 
 ## Critical Analysis
 
+### Limitations
+
+- **Retrieval sensitivity**: RAG's performance relies heavily on embedding quality and getting relevant retrievals. When the retriever grabs irrelevant passages, the generator can hallucinate or produce wrong answers—especially problematic in specialized domains.
+- **Missing embedding analysis**: The authors use pre-trained DPR embeddings without testing alternatives or justifying this choice. More concerning, DPR was trained on TriviaQA and Natural Questions—two datasets they evaluate on—which could inflate their results.
+- **Scalability**: Dense retrieval over large corpora is expensive. The paper doesn't really dig into the practical trade-offs between speed, memory, and accuracy that matter for deployment.
+- **Narrow evaluation**: The paper primarily reports exact-match QA metrics, which do not fully capture hallucinations or partial errors in generated text. It also relies heavily on Wikipedia-style corpora, leaving **domain-specific or noisy data performance largely unexplored**. This raises questions about generalization to other knowledge-intensive tasks.
+
 ---
 
-# Impact
+## Impact
 
 ### Novel Architecture
-- **First to combine learned end-to-end retrieval with seq2seq models** (BART)
-- Prior work (REALM/ORQA) only used masked LMs for extractive QA
-- **Single unified architecture** across multiple task types (QA, generation, classification)
+- **First model to combine learned retrieval with a seq2seq generator** in a single end-to-end system  
+- Introduced a **hybrid design** that uses both parametric memory (model weights) and non-parametric memory (retrieved documents)  
+- Extended retrieval methods beyond extractive QA to include **generation, reasoning, and classification tasks**
 
 ### Strong Empirical Results
-- Beat T5-11B (11B params) using only 626M trainable parameters
-- Human evaluation: RAG more factual than BART (42.7% vs. 7.1%)
-- 11.8% accuracy when answer not in retrieved docs (extractive = 0%)
-- Index hot-swap: 70% accuracy with matched index, 4% with mismatched
+- Set **new state-of-the-art results** on multiple open-domain QA benchmarks  
+- Achieved competitive performance with significantly fewer parameters than purely parametric models
+- **Human evaluation showed RAG responses were more factual, specific, and diverse** than strong baselines
+- Demonstrated **"index hot-swapping,"** allowing the model's knowledge to be updated without retraining
 
-## Broader AI Landscape
+### Foundation for Modern Systems
+- Served as a **direct precursor** to retrieval-based assistants like ChatGPT with browsing, Perplexity AI, and enterprise RAG systems  
+- Provided a **template for retrieval-augmented LLMs** now widely used across research and industry
 
-### Enabled Modern Systems
-- **Direct precursor to** ChatGPT with browsing, Bing Chat, and Perplexity AI  
-- **Template for enterprise RAG pipelines** (legal, medical, internal knowledge systems)
-
-### Addressed Key LLM Challenges
-
-| Problem | RAG Solution |
-|:---------|:--------------|
-| Hallucinations | Reduces hallucinations by grounding responses in retrieved evidence |
-| Stale knowledge | Enables updates via index swaps — no retraining required |
-| No provenance | Provides transparency through visible retrieved documents |
-
+### Addressed Key Model Limitations
+- **Reduced hallucinations** by grounding responses in real documents  
+- **Kept knowledge current** through simple index updates rather than retraining
+- **Improved interpretability** by making retrieved sources visible
 
 --- 
 ## Other Resources
 
 - https://github.com/NirDiamant/RAG_Techniques/tree/main?tab=readme-ov-file
+
+
 
 
 
