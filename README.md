@@ -15,7 +15,8 @@
 ## RAG Overview
 ### **Why is RAG unique?**
 - **RAG extends this hybrid parametric + non-parametric memory setup to sequence2seq encoder-decoder models.**
-- Authors used BART-large as the parametric memory, and a dense vector index of Wikipedia, accessed with a pre-trained neural retriever, as the non-parametric memory.
+- RAG models take an input sequence, use it to retrieve text documents, and then uses the input and retrieved text documents as context to generate an output sequence.
+
 
 ### Main Components
 
@@ -186,33 +187,38 @@ $$
 
 ## Critical Analysis
 
-### Limitations
+**Retrieval Quality Dependency**
+- RAG's performance is fundamentally bounded by retrieval quality
+- No strategy for handling scenarios where good documents aren't available or embeddings are poor
+- Lacks fallback mechanisms for detecting and handling retrieval failures
+- System becomes fragile in specialized domains with incomplete knowledge bases or poorly calibrated embedding spaces
 
-- **Retrieval sensitivity**: RAG's performance relies heavily on embedding quality and getting relevant retrievals. When the retriever grabs irrelevant passages, the generator can hallucinate or produce wrong answers—especially problematic in specialized domains.
-- **Missing embedding analysis**: The authors use pre-trained DPR embeddings without testing alternatives or justifying this choice. More concerning, DPR was trained on TriviaQA and Natural Questions—two datasets they evaluate on—which could inflate their results.
-- **Scalability**: Dense retrieval over large corpora is expensive. The paper doesn't really dig into the practical trade-offs between speed, memory, and accuracy that matter for deployment.
-- **Narrow evaluation**: The paper primarily reports exact-match QA metrics, which do not fully capture hallucinations or partial errors in generated text. It also relies heavily on Wikipedia-style corpora, leaving **domain-specific or noisy data performance largely unexplored**. This raises questions about generalization to other knowledge-intensive tasks.
+**Conflicting Information Handling**
+- Paper doesn't explore how RAG resolves contradictions when retrieved documents conflict
+- Unclear which sources the model prioritizes (highest-scoring? attempts synthesis?)
+- No mechanism to provide balanced views or flag contradictory evidence to users
+- Risk of producing misleading answers based on arbitrary document rankings
 
 ---
 
 ## Impact
 
-### Novel Architecture
+**Novel Architecture**
 - **First model to combine learned retrieval with a seq2seq generator** in a single end-to-end system  
 - Introduced a **hybrid design** that uses both parametric memory (model weights) and non-parametric memory (retrieved documents)  
 - Extended retrieval methods beyond extractive QA to include **generation, reasoning, and classification tasks**
 
-### Strong Empirical Results
+**Strong Empirical Results**
 - Set **new state-of-the-art results** on multiple open-domain QA benchmarks  
 - Achieved competitive performance with significantly fewer parameters than purely parametric models
 - **Human evaluation showed RAG responses were more factual, specific, and diverse** than strong baselines
 - Demonstrated **"index hot-swapping,"** allowing the model's knowledge to be updated without retraining
 
-### Foundation for Modern Systems
+**Foundation for Modern Systems**
 - Served as a **direct precursor** to retrieval-based assistants like ChatGPT with browsing, Perplexity AI, and enterprise RAG systems  
 - Provided a **template for retrieval-augmented LLMs** now widely used across research and industry
 
-### Addressed Key Model Limitations
+**Addressed Key Model Limitations**
 - **Reduced hallucinations** by grounding responses in real documents  
 - **Kept knowledge current** through simple index updates rather than retraining
 - **Improved interpretability** by making retrieved sources visible
