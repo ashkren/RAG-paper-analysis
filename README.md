@@ -12,8 +12,8 @@
 ### Previous Work
 - REALM and ORQA: Encoder-based models for open-domain extractive QA.  
 
-## RAG Overview
-### **Why is RAG unique?**
+## Overview
+### **RAG: Retrieval Augmented Generation**
 - **RAG extends this hybrid parametric + non-parametric memory setup to sequence2seq encoder-decoder models.**
 - RAG models take an input sequence, use it to retrieve text documents, and then uses the input and retrieved text documents as context to generate an output sequence.
 
@@ -178,19 +178,56 @@ $$
 
 ---
 
+<details>
+<summary>If you were tasked with building a RAG chatbot that is used for troubleshooting technical issues in a cloud infrastructure platform (like AWS or Azure), would you use RAG-Sequence or RAG-Token?</summary>
+
+Because each step of a troubleshooting answer might depend on different documentation sources — such as error codes, CLI commands, or configuration guides — RAG-Token’s token-level retrieval lets the model dynamically pull the most relevant technical details as it generates the response.
+</details>
+
+
+---
+
 ## Critical Analysis
 
+### What the Paper Did Well
+
+**Comprehensive Evaluation**: The paper tested RAG across diverse tasks (open-domain QA, abstractive QA, question generation, fact verification) rather than optimizing for a single benchmark, demonstrating broad applicability.
+
+**Systematic Comparisons**: The experiments clearly show where performance gains come from - learned retrieval adds ~3 points over frozen retrieval, and dense retrieval (DPR) outperforms keyword matching (BM25) by 12+ points on Natural Questions.
+
+**Human Evaluation**: Beyond automatic metrics, they conducted human assessments showing RAG was more factual than BART in 42.7% of cases vs. 7.1%, with concrete evidence of reduced hallucinations.
+
+### Key Limitations
+
 **Retrieval Quality Dependency**
-- RAG's performance is fundamentally bounded by retrieval quality
-- No strategy for handling scenarios where good documents aren't available or embeddings are poor
-- Lacks fallback mechanisms for detecting and handling retrieval failures
-- System becomes fragile in specialized domains with incomplete knowledge bases or poorly calibrated embedding spaces
+- RAG's performance is fundamentally bounded by retrieval quality - experiments show 12-point drops when swapping DPR for BM25 (44.0 → 31.8 EM on Natural Questions)
+- No fallback mechanisms for detecting or handling retrieval failures
+- Paper acknowledges "retrieval collapse" where the model learns to retrieve identical documents regardless of input, but doesn't solve it
+
+**Limited Exploration of Components**
+- All experiments use single knowledge source (Wikipedia December 2018) and primarily one retrieval method (DPR), with only BM25 as baseline
+- Generator fixed to BART-large - no exploration of other seq2seq models or scaling effects
+- Document chunking is arbitrary (100 words) with no analysis of semantic boundaries
 
 **Conflicting Information Handling**
-- Paper doesn't explore how RAG resolves contradictions when retrieved documents conflict
-- Unclear which sources the model prioritizes (highest-scoring? attempts synthesis?)
-- No mechanism to provide balanced views or flag contradictory evidence to users
-- Risk of producing misleading answers based on arbitrary document rankings
+- Paper doesn't explore how RAG resolves contradictions when retrieved documents having conflicting information
+- No mechanism to flag contradictory evidence to users
+- For FEVER, 10% of questions lack gold documents in top-10 retrievals, but impact isn't analyzed
+
+**Missing Computational Analysis**
+- RAG-Token requires K generator calls per token (500 calls vs. 10 for RAG-Sequence in typical case)
+- No latency benchmarks or discussion of deployment costs (100GB CPU memory for index)
+
+--- 
+
+<details>
+<summary> If you had to improve RAG's performance with limited resources, which component would you focus on — retrieval or generation — and why?</summary>
+
+You should  focus on improving the retrieval component.  
+RAG’s overall performance depends heavily on the quality and relevance of retrieved documents — even a strong generator can’t produce good answers from weak or irrelevant context.  
+Enhancing retrieval through better indexing, document chunking, or embedding quality often yields the greatest performance gains with limited resources, since it directly improves the grounding information the generator uses.
+</details>
+
 
 ---
 
@@ -202,13 +239,6 @@ $$
 - **Reduced Hallucinations & Interpretability:** Grounded generation in retrieved documents leads to more factual, specific outputs and provides visible sources.  
 - **Learned Retrieval Without Supervision:** End-to-end training treats retrieval as a latent variable, requiring no annotated retrieval data.  
 - **Foundation for Modern AI:** Inspired retrieval-augmented systems like ChatGPT with browsing, Perplexity AI, and enterprise RAG solutions; set the standard for hybrid parametric/non-parametric models.
-
----
-
-## Questions
-
-1) In the pseudocode, notice that RAG-Sequence marginalizes after generating the full sequence, while RAG-Token marginalizes before each token. Why does this difference matter? What happens to computational cost and the model's ability to combine information from multiple documents?"
-2) RAG-Sequence uses a single document for the entire output, while RAG-Token can use a different document for each token. What are the trade-offs between these approaches in terms of accuracy, flexibility, and computational cost?
 
 --- 
 
