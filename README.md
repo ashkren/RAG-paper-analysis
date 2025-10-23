@@ -32,9 +32,10 @@
 - **Generator:** $p_{\theta}(y_i \mid x, z, y_{1:i-1})$  
   - Generates each next token $y_i$ based on:  
     - The input query $x$  
-    - The retrieved document $z$  
+    - The retrieved document $z$ (concatenated with the query as context)  
     - All previously generated tokens $y_{1:i-1}$  
-  - Implemented using BART-large, a sequence-to-sequence (seq2seq) transformer.  
+  - Implemented using **BART-large**, a sequence-to-sequence (seq2seq) transformer that encodes the combined input `[x ; z]` and decodes the output sequence.
+
 
 
 ### Variable Definitions
@@ -56,26 +57,40 @@
 
 ### 1. RAG-Sequence
 - Uses **the same retrieved document** to generate the entire output sequence. Once a document is selected, the model conditions the full output on that document.  
-- Marginalizes over the top-K retrieved documents to account for retrieval uncertainty, so the overall probability of generating a sequence is:  
-
+- **How it works**: 
+  - Retrieves K documents (e.g., K=10)
+  - For each document, generates the complete output sequence and computes its probability
+  - Weights each sequence probability by the document's retrieval score
+  - Final answer probability is the weighted sum across all K documents
+- Marginalizes over the top-K retrieved documents to account for retrieval uncertainty, so the overall probability of generating a sequence is:
+  
 $$
-p(y \mid x) = \sum_{z \in \text{top-K}} p_{\eta}(z \mid x) \, p_{\theta}(y \mid x, z)
+p_{\text{RAG-Sequence}}(y|x) = \sum_{z \in \text{top-k}(p(\cdot|x), Z)} p_\eta(z|x) \prod_{i=1}^N p_\theta(y_i|x, z, y_{1:i-1})
 $$
 
-- Suitable when a **single document contains most of the required information**, but may be less flexible if multiple sources are needed.
+- Suitable when a single document contains most of the required information, but may be less flexible if multiple sources are needed.
+- **Computational cost**: Requires K full sequence generations, then combines them
 
 ---
 
 ### 2. RAG-Token
 - Allows **different documents to influence each token** in the output. For each token, the model marginalizes across the top-K documents to compute the probability of the next token.  
+- **How it works**:
+  - Retrieves K documents once at the beginning
+  - For each token position, considers all K documents
+  - Computes next-token probability using each document separately
+  - Weights each probability by the document's retrieval score
+  - Marginalizes (sums) to get final token probability
+  - Repeats for each token in the sequence
 - Captures fine-grained information from multiple sources, making it more robust when no single document fully answers the query.  
 - The probability for each token is:
-
+  
 $$
-p(y_i \mid x, y_{1:i-1}) = \sum_{z \in \text{top-K}} p_{\eta}(z \mid x) \, p_{\theta}(y_i \mid x, z, y_{1:i-1})
+p_{\text{RAG-Token}}(y|x) = \prod_{i=1}^N \sum_{z \in \text{top-k}(p(\cdot|x), Z)} p_\eta(z|x) \; p_\theta(y_i|x, z, y_{1:i-1})
 $$
 
 - Ideal for tasks where **information is scattered across multiple passages**, but computationally more expensive than RAG-Sequence.
+- **Computational cost**: Requires K generator calls per token (e.g., 50 tokens × 10 documents = 500 calls vs. 10 for RAG-Sequence)
 
 ---
 
@@ -141,12 +156,6 @@ $$
 - $p_k$: probability of generating sequence $y$ using document $k$
 - $p_{\theta,i}$: probability distribution over tokens at position $i$
 
-**Mathematical formulation:**
-
-$$
-p_{\text{RAG-Sequence}}(y|x) = \sum_{z \in \text{top-k}(p(\cdot|x), Z)} p_\eta(z|x) \prod_{i=1}^N p_\theta(y_i|x, z, y_{1:i-1})
-$$
-
 ---
 
 ### Algorithm 4: RAG-Token
@@ -170,12 +179,6 @@ $$
 - $p_i$: marginalized probability of token $y_i$ over all documents
 - $p_{\theta,i,k}$: probability distribution over tokens at position $i$ using document $k$
 
-**Mathematical formulation:**
-
-$$
-p_{\text{RAG-Token}}(y|x) = \prod_{i=1}^N \sum_{z \in \text{top-k}(p(\cdot|x), Z)} p_\eta(z|x) \; p_\theta(y_i|x, z, y_{1:i-1})
-$$
-
 ---
 
 <details>
@@ -184,6 +187,16 @@ $$
 Because each step of a troubleshooting answer might depend on different documentation sources — such as error codes, CLI commands, or configuration guides — RAG-Token’s token-level retrieval lets the model dynamically pull the most relevant technical details as it generates the response.
 </details>
 
+---
+
+## Empirical Results
+
+| **Task** | **Evaluation Metric(s)** | **Key Takeaway** |
+|-----------|---------------------------|----------------------------------|
+| **Open-domain Question Answering** | Exact Match (EM) | RAG outperforms extractive retrievers like DPR and REALM, and generative seq2seq baselines such as T5 (closed-book). |
+| **Abstractive Question Answering (MSMARCO)** | BLEU, ROUGE | RAG surpasses the BART seq2seq baseline, generating more factual and less hallucinatory responses. |
+| **Jeopardy Question Generation** | Q-BLEU, Human Evaluation | RAG produces more factual and specific questions than the BART baseline, showing stronger knowledge-grounded generation. |
+| **Fact Verification (FEVER)** | Classification Accuracy | RAG approaches state-of-the-art models that rely on retrieval supervision, without needing such task-specific baselines. |
 
 ---
 
@@ -208,9 +221,10 @@ Because each step of a troubleshooting answer might depend on different document
 <details>
 <summary> If you had to improve RAG's performance with limited resources, which component would you focus on — retrieval or generation — and why?</summary>
 
-You should  focus on improving the retrieval component.  
-RAG’s overall performance depends heavily on the quality and relevance of retrieved documents — even a strong generator can’t produce good answers from weak or irrelevant context.  
-Enhancing retrieval through better indexing, document chunking, or embedding quality often yields the greatest performance gains with limited resources, since it directly improves the grounding information the generator uses.
+With limited resources, improving the retrieval component would yield the greatest impact.
+RAG’s performance depends primarily on the quality and relevance of the retrieved documents — even a strong generator cannot produce accurate or factual answers without reliable context. Enhancing retrieval through better indexing, chunking, or embedding quality directly improves the grounding information the generator relies on.
+
+Improving the generation component would be less efficient. Retraining or fine-tuning a generator is computationally expensive, involves large parameter updates, and typically produces only small gains. In contrast, improving retrieval quality is more cost-effective and leads to larger downstream improvements in factual accuracy.
 </details>
 
 
@@ -220,9 +234,8 @@ Enhancing retrieval through better indexing, document chunking, or embedding qua
 
 - **Novel Hybrid Architecture:** First end-to-end system combining learned retrieval with seq2seq generation, using both parametric (model weights) and non-parametric (retrieved documents) memory.  
 - **Strong Results:** Achieved state-of-the-art performance on open-domain QA benchmarks like Natural Questions (44.5 EM), TriviaQA (56.8 EM), and WebQuestions (45.2 EM), with fewer parameters than models like T5-11B.  
-- **Knowledge Updating Without Retraining:** Demonstrated "index hot-swapping" — knowledge can be updated by replacing the document index; e.g., 70% accuracy on world leaders with correct indices vs 4-12% with mismatched indices.  
+- **Knowledge Updating Without Retraining:** Demonstrated "index hot-swapping" — knowledge can be updated by replacing the document index
 - **Reduced Hallucinations & Interpretability:** Grounded generation in retrieved documents leads to more factual, specific outputs and provides visible sources.  
-- **Learned Retrieval Without Supervision:** End-to-end training treats retrieval as a latent variable, requiring no annotated retrieval data.  
 - **Foundation for Modern AI:** Inspired retrieval-augmented systems like ChatGPT with browsing, Perplexity AI, and enterprise RAG solutions; set the standard for hybrid parametric/non-parametric models.
 
 --- 
@@ -234,6 +247,7 @@ Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., … Kie
 
 ## Other Resources
 
+- Code Demo: https://colab.research.google.com/drive/1J4vv3AuKSaLhY6fdgtIcbYEPmkJivJE-?usp=sharing
 - https://github.com/NirDiamant/RAG_Techniques/tree/main?tab=readme-ov-file
 - https://www.geeksforgeeks.org/nlp/retrieval-augmented-generation-rag-for-knowledge-intensive-nlp-tasks/#
 
