@@ -191,32 +191,17 @@ Because each step of a troubleshooting answer might depend on different document
 
 ### What the Paper Did Well
 
-**Comprehensive Evaluation**: The paper tested RAG across diverse tasks (open-domain QA, abstractive QA, question generation, fact verification) rather than optimizing for a single benchmark, demonstrating broad applicability.
-
-**Systematic Comparisons**: The experiments clearly show where performance gains come from - learned retrieval adds ~3 points over frozen retrieval, and dense retrieval (DPR) outperforms keyword matching (BM25) by 12+ points on Natural Questions.
-
-**Human Evaluation**: Beyond automatic metrics, they conducted human assessments showing RAG was more factual than BART in 42.7% of cases vs. 7.1%, with concrete evidence of reduced hallucinations.
+- **Comprehensive Evaluation:** The paper tested RAG across diverse tasks (open-domain QA, abstractive QA, question generation, fact verification), demonstrating broad applicability rather than optimizing for a single benchmark.  
+- **Human Evaluation:** Conducted human assessments showing RAG was more factual than BART in 42.7% of cases vs. 7.1%, with concrete evidence of reduced hallucinations.  
+- **Explored Retrieval Settings:** The paper experimented with different numbers of retrieved documents during training and testing, showing that performance is robust across configurations and can improve when more documents are retrieved at test time.
 
 ### Key Limitations
 
-**Retrieval Quality Dependency**
-- RAG's performance is fundamentally bounded by retrieval quality - experiments show 12-point drops when swapping DPR for BM25 (44.0 → 31.8 EM on Natural Questions)
-- No fallback mechanisms for detecting or handling retrieval failures
-- Paper acknowledges "retrieval collapse" where the model learns to retrieve identical documents regardless of input, but doesn't solve it
+- **Retrieval Quality Dependency:** RAG's performance is fundamentally bounded by retrieval quality. Experiments show a 12-point drop when swapping DPR for BM25 (44.0 → 31.8 EM on Natural Questions). No fallback mechanisms are provided for handling retrieval failures.  
 
-**Limited Exploration of Components**
-- All experiments use single knowledge source (Wikipedia December 2018) and primarily one retrieval method (DPR), with only BM25 as baseline
-- Generator fixed to BART-large - no exploration of other seq2seq models or scaling effects
-- Document chunking is arbitrary (100 words) with no analysis of semantic boundaries
+- **Limited Exploration of Components:** All experiments use a single knowledge source (Wikipedia, December 2018), which may not always be reliable or complete. The generator also is fixed to BART-large, with no exploration of other seq2seq models or scaling effects.  
 
-**Conflicting Information Handling**
-- Paper doesn't explore how RAG resolves contradictions when retrieved documents having conflicting information
-- No mechanism to flag contradictory evidence to users
-- For FEVER, 10% of questions lack gold documents in top-10 retrievals, but impact isn't analyzed
-
-**Missing Computational Analysis**
-- RAG-Token requires K generator calls per token (500 calls vs. 10 for RAG-Sequence in typical case)
-- No latency benchmarks or discussion of deployment costs (100GB CPU memory for index)
+- **Conflicting Information Handling:** The paper does not explore how RAG resolves contradictions when retrieved documents contain conflicting information, and there is no mechanism to flag contradictory evidence to users.  
 
 --- 
 
