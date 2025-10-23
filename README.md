@@ -178,13 +178,6 @@ $$
 
 ---
 
-## Questions
-
-1) RAG combines retrieval and generation, but the generator’s output quality depends on the relevance of retrieved documents. How might errors in the retrieval step affect the final output, and what strategies could be used to mitigate these errors?
-2) RAG-Sequence uses a single document for the entire output, while RAG-Token can use a different document for each token. What are the trade-offs between these approaches in terms of accuracy, flexibility, and computational cost?
-
----
-
 ## Critical Analysis
 
 **Retrieval Quality Dependency**
@@ -203,30 +196,31 @@ $$
 
 ## Impact
 
-**Novel Architecture**
-- **First model to combine learned retrieval with a seq2seq generator** in a single end-to-end system  
-- Introduced a **hybrid design** that uses both parametric memory (model weights) and non-parametric memory (retrieved documents)  
-- Extended retrieval methods beyond extractive QA to include **generation, reasoning, and classification tasks**
+- **Novel Hybrid Architecture:** First end-to-end system combining learned retrieval with seq2seq generation, using both parametric (model weights) and non-parametric (retrieved documents) memory.  
+- **Strong Results:** Achieved state-of-the-art performance on open-domain QA benchmarks like Natural Questions (44.5 EM), TriviaQA (56.8 EM), and WebQuestions (45.2 EM), with fewer parameters than models like T5-11B.  
+- **Knowledge Updating Without Retraining:** Demonstrated "index hot-swapping" — knowledge can be updated by replacing the document index; e.g., 70% accuracy on world leaders with correct indices vs 4-12% with mismatched indices.  
+- **Reduced Hallucinations & Interpretability:** Grounded generation in retrieved documents leads to more factual, specific outputs and provides visible sources.  
+- **Learned Retrieval Without Supervision:** End-to-end training treats retrieval as a latent variable, requiring no annotated retrieval data.  
+- **Foundation for Modern AI:** Inspired retrieval-augmented systems like ChatGPT with browsing, Perplexity AI, and enterprise RAG solutions; set the standard for hybrid parametric/non-parametric models.
 
-**Strong Empirical Results**
-- Set **new state-of-the-art results** on multiple open-domain QA benchmarks  
-- Achieved competitive performance with significantly fewer parameters than purely parametric models
-- **Human evaluation showed RAG responses were more factual, specific, and diverse** than strong baselines
-- Demonstrated **"index hot-swapping,"** allowing the model's knowledge to be updated without retraining
+---
 
-**Foundation for Modern Systems**
-- Served as a **direct precursor** to retrieval-based assistants like ChatGPT with browsing, Perplexity AI, and enterprise RAG systems  
-- Provided a **template for retrieval-augmented LLMs** now widely used across research and industry
+## Questions
 
-**Addressed Key Model Limitations**
-- **Reduced hallucinations** by grounding responses in real documents  
-- **Kept knowledge current** through simple index updates rather than retraining
-- **Improved interpretability** by making retrieved sources visible
+1) In the pseudocode, notice that RAG-Sequence marginalizes after generating the full sequence, while RAG-Token marginalizes before each token. Why does this difference matter? What happens to computational cost and the model's ability to combine information from multiple documents?"
+2) RAG-Sequence uses a single document for the entire output, while RAG-Token can use a different document for each token. What are the trade-offs between these approaches in terms of accuracy, flexibility, and computational cost?
 
 --- 
+
+## Citation
+
+Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., … Kiela, D. (2021). Retrieval-augmented generation for knowledge-intensive NLP tasks. Retrieved from https://arxiv.org/abs/2005.11401 
+
+
 ## Other Resources
 
 - https://github.com/NirDiamant/RAG_Techniques/tree/main?tab=readme-ov-file
+- https://www.geeksforgeeks.org/nlp/retrieval-augmented-generation-rag-for-knowledge-intensive-nlp-tasks/#
 
 
 
