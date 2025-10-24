@@ -217,7 +217,7 @@ Because each step of a troubleshooting answer might depend on different document
 
 ### Key Limitations
 
-- **Retrieval Quality Dependency:** RAG's performance is fundamentally bounded by retrieval quality. Experiments show a 12-point drop when swapping DPR for BM25 (44.0 → 31.8 EM on Natural Questions). No fallback mechanisms are provided for handling retrieval failures.  
+- **Retrieval Quality Dependency:** RAG’s performance depends heavily on the quality and relevance of retrieved documents. When retrieval returns low-quality or off-topic evidence, the model still conditions on it, degrading output quality. Without a fallback mechanism, it implicitly relies on pretrained knowledge, often yielding generic or inaccurate responses.
 
 - **Limited Exploration of Components:** All experiments use a single knowledge source (Wikipedia, December 2018), which may not always be reliable or complete. The generator also is fixed to BART-large, with no exploration of other seq2seq models or scaling effects.  
 
@@ -240,10 +240,10 @@ Improving the generation component would be less efficient. Retraining or fine-t
 ## Impact
 
 - **Novel Hybrid Architecture:** First end-to-end system combining learned retrieval with seq2seq generation, using both parametric (model weights) and non-parametric (retrieved documents) memory.  
-- **Strong Results:** Achieved state-of-the-art performance on open-domain QA benchmarks like Natural Questions (44.5 EM), TriviaQA (56.8 EM), and WebQuestions (45.2 EM), with fewer parameters than models like T5-11B.  
-- **Knowledge Updating Without Retraining:** Demonstrated "index hot-swapping" — knowledge can be updated by replacing the document index
-- **Reduced Hallucinations & Interpretability:** Grounded generation in retrieved documents leads to more factual, specific outputs and provides visible sources.  
+- **Domain-Specific Adaptation:** By utilizing domain-specific documents, RAG can generate accurate answers for specialized areas without retraining.    
+- **Reduced Hallucinations & Improved Interpretability:** Grounded generation in retrieved documents leads to more factual, specific outputs and provides visible sources.  
 - **Foundation for Modern AI:** Inspired retrieval-augmented systems like ChatGPT with browsing, Perplexity AI, and enterprise RAG solutions; set the standard for hybrid parametric/non-parametric models.
+
 
 --- 
 
@@ -257,6 +257,9 @@ Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., … Kie
 - Code Demo: https://colab.research.google.com/drive/1J4vv3AuKSaLhY6fdgtIcbYEPmkJivJE-?usp=sharing
 - https://github.com/NirDiamant/RAG_Techniques/tree/main?tab=readme-ov-file
 - https://www.geeksforgeeks.org/nlp/retrieval-augmented-generation-rag-for-knowledge-intensive-nlp-tasks/#
+- https://github.com/Danielskry/Awesome-RAG
+- https://www.geeksforgeeks.org/nlp/rag-architecture/
+- https://www.databricks.com/glossary/retrieval-augmented-generation-rag
 
 
 
