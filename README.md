@@ -27,7 +27,8 @@
     - $q(x)$: Query representation encoded by a BERT-based query encoder  
     - $d(z)$: Document representation encoded by a BERT-based document encoder
       - Builds the document index, which stores dense vector embeddings of all passages
-  - Documents are ranked using Maximum Inner Product Search (MIPS) to find the most relevant passages.  
+  - Documents are ranked using Maximum Inner Product Search (MIPS) to find the most relevant passages.
+  - In the paper, the authors use a pre-trained neural retriever to access a dense vector index of Wikipedia 
 
 - **Generator:** $p_{\theta}(y_i \mid x, z, y_{1:i-1})$  
   - Generates each next token $y_i$ based on:  
@@ -54,43 +55,56 @@
 ---
 
 ## RAG Variants
-
 ### 1. RAG-Sequence
-- Uses **the same retrieved document** to generate the entire output sequence. Once a document is selected, the model conditions the full output on that document.  
-- **How it works**: 
-  - Retrieves K documents (e.g., K=10)
-  - For each document, generates the complete output sequence and computes its probability
-  - Weights each sequence probability by the document's retrieval score
-  - Final answer probability is the weighted sum across all K documents
-- Marginalizes over the top-K retrieved documents to account for retrieval uncertainty, so the overall probability of generating a sequence is:
-  
+- The model retrieves a set of relevant documents and uses **that set of documents to generate the entire output sequence**.  
+- The same retrieved context is assumed throughout generation, and the model **marginalizes over the top-K retrieved documents** to account for uncertainty in retrieval.
+
+**How it works:**
+1. **Retrieve Documents:** Encode the query and retrieve the top-K most relevant documents from the document index.
+2. **Generate K Complete Sequences:** For each of the K retrieved documents:
+   - Treat the document as a latent variable z
+   - Use that single document as context to generate a complete answer sequence
+   - Calculate the probability of generating that entire sequence given the document: $p(y|x,z)$
+3. **Marginalize Over Documents:** Weight each complete sequence by its document's retrieval probability $p(z|x)$, then sum these weighted probabilities across all K documents to get the final sequence probability $p(y|x)$.
+
+**Mathematically:**
+
 $$
 p_{\text{RAG-Sequence}}(y|x) = \sum_{z \in \text{top-k}(p(\cdot|x), Z)} p_\eta(z|x) \prod_{i=1}^N p_\theta(y_i|x, z, y_{1:i-1})
 $$
 
-- Suitable when a single document contains most of the required information, but may be less flexible if multiple sources are needed.
-- **Computational cost**: Requires K full sequence generations, then combines them
+**Key insight:** One document conditions the entire generation; marginalization happens at the sequence level.
+
+**Use case:** Works well when most of the required information is contained in one or a few documents.  
+**Limitation:** Less effective when information is distributed across multiple sources.  
+**Computation:** Requires K full sequence generations (one per retrieved document).  
 
 ---
 
 ### 2. RAG-Token
-- Allows **different documents to influence each token** in the output. For each token, the model marginalizes across the top-K documents to compute the probability of the next token.  
-- **How it works**:
-  - Retrieves K documents once at the beginning
-  - For each token position, considers all K documents
-  - Computes next-token probability using each document separately
-  - Weights each probability by the document's retrieval score
-  - Marginalizes (sums) to get final token probability
-  - Repeats for each token in the sequence
-- Captures fine-grained information from multiple sources, making it more robust when no single document fully answers the query.  
-- The probability for each token is:
-  
+- The model allows **different retrieved documents to influence each token** in the generated output.  
+- Instead of treating one document as the latent variable for the whole sequence, each token can draw from a different document.
+
+**How it works:**
+1. **Retrieve Documents:** Encode the query and retrieve the top-K most relevant documents from the document index.
+2. **Generate Token-by-Token with Document Marginalization:** At each token position i:
+   - For each of the K documents, compute the probability distribution over the next token: $p(y_i|x,z,y_{1:i-1})$
+   - Weight each document's probability distribution by its retrieval score $p(z|x)$  
+   - Sum these weighted probabilities to get the final probability for the next token
+   - Select the most likely token, then repeat this process for the next position
+3. **Per-Token Latent Variables:** Each token position independently marginalizes over all K documents, allowing different parts of the answer to be influenced by different sources.
+
+**Mathematically:**
+
 $$
 p_{\text{RAG-Token}}(y|x) = \prod_{i=1}^N \sum_{z \in \text{top-k}(p(\cdot|x), Z)} p_\eta(z|x) \; p_\theta(y_i|x, z, y_{1:i-1})
 $$
 
-- Ideal for tasks where **information is scattered across multiple passages**, but computationally more expensive than RAG-Sequence.
-- **Computational cost**: Requires K generator calls per token (e.g., 50 tokens × 10 documents = 500 calls vs. 10 for RAG-Sequence)
+**Key insight:** Each token has its own latent document variable; marginalization happens at the token level.
+
+**Use case:** Ideal when information is scattered across multiple passages and needs to be integrated throughout the answer.  
+**Limitation:** Computationally expensive, since it performs K forward passes per token (K × N computations for a sequence of length N).  
+**Computation:** Requires K probability computations at each of N token generation steps.
 
 ---
 
@@ -196,7 +210,8 @@ Because each step of a troubleshooting answer might depend on different document
 | **Open-domain Question Answering** | Exact Match (EM) | RAG outperforms extractive retrievers like DPR and REALM, and generative seq2seq baselines such as T5 (closed-book). |
 | **Abstractive Question Answering (MSMARCO)** | BLEU, ROUGE | RAG surpasses the BART seq2seq baseline, generating more factual and less hallucinatory responses. |
 | **Jeopardy Question Generation** | Q-BLEU, Human Evaluation | RAG produces more factual and specific questions than the BART baseline, showing stronger knowledge-grounded generation. |
-| **Fact Verification (FEVER)** | Classification Accuracy | RAG approaches state-of-the-art models that rely on retrieval supervision, without needing such task-specific baselines. |
+| **Fact Verification (FEVER)** | Classification Accuracy | RAG reaches performance comparable to state-of-the-art models, without relying on complex pipelines or additional supervision. |
+
 
 ---
 
