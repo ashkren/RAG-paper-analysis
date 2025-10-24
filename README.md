@@ -102,6 +102,14 @@ $$
 
 ## RAG Algorithm Pseudocode
 
+**Pseudocode / Algorithmic Overview**  
+- RAG combines a learned document retriever with a generative seq2seq model. Each retrieved document is treated as a latent variable, and the model marginalizes over these documents to produce the final output. RAG-Sequence marginalizes at the sequence level, while RAG-Token marginalizes at the token level.  
+
+**Difference from Previous Methods**  
+- Unlike previous retrieval-augmented models (e.g., REALM, ORQA) which focused on extractive QA, RAG integrates retrieval with sequence generation, allowing it to generate full answers and combine information across multiple documents.
+
+--- 
+
 ### Algorithm 1: Retriever
 **Dense Passage Retriever (DPR) component**
 
