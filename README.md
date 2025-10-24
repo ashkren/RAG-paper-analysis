@@ -57,15 +57,11 @@
 ## RAG Variants
 ### 1. RAG-Sequence
 - The model retrieves a set of relevant documents and uses **that set of documents to generate the entire output sequence**.  
-- The same retrieved context is assumed throughout generation, and the model **marginalizes over the top-K retrieved documents** to account for uncertainty in retrieval.
 
 **How it works:**
-1. **Retrieve Documents:** Encode the query and retrieve the top-K most relevant documents from the document index.
-2. **Generate K Complete Sequences:** For each of the K retrieved documents:
-   - Treat the document as a latent variable z
-   - Use that single document as context to generate a complete answer sequence
-   - Calculate the probability of generating that entire sequence given the document: $p(y|x,z)$
-3. **Marginalize Over Documents:** Weight each complete sequence by its document's retrieval probability $p(z|x)$, then sum these weighted probabilities across all K documents to get the final sequence probability $p(y|x)$.
+1. The model retrieves the top-K documents relevant to the query.  
+2. Each retrieved document is treated as a latent variable $z$. The model then generates a full output sequence conditioned on that document and calculates the probability of producing that sequence $p(y∣x,z)$ given the input query and document. 
+3. After generating K complete sequences, the model marginalizes over the documents by weighting each sequence according to the document’s retrieval probability $p(z | x)$ and summing these weighted probabilities to get the final probability of the complete output sequence $p(y | x)$.
 
 **Mathematically:**
 
@@ -86,13 +82,9 @@ $$
 - Instead of treating one document as the latent variable for the whole sequence, each token can draw from a different document.
 
 **How it works:**
-1. **Retrieve Documents:** Encode the query and retrieve the top-K most relevant documents from the document index.
-2. **Generate Token-by-Token with Document Marginalization:** At each token position i:
-   - For each of the K documents, compute the probability distribution over the next token: $p(y_i|x,z,y_{1:i-1})$
-   - Weight each document's probability distribution by its retrieval score $p(z|x)$  
-   - Sum these weighted probabilities to get the final probability for the next token
-   - Select the most likely token, then repeat this process for the next position
-3. **Per-Token Latent Variables:** Each token position independently marginalizes over all K documents, allowing different parts of the answer to be influenced by different sources.
+1. The model retrieves the top-K relevant documents for the query.  
+2. The model generates the output token by token. At each token position $y_i$, the model computes the probability of that token for each document $p(y_i | x, z, y_{1:i-1})$ which is conditioned on the input query, the retrieved document, and the previously generated tokens.
+3. Each document’s probability distribution is weighted by its retrieval probability $p(z | x)$ and summed to get the final probability distribution for the next token. The most likely token is selected, and the process repeats for the next token.  
 
 **Mathematically:**
 
