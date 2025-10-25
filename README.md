@@ -1,5 +1,12 @@
 # Retrieval-Augmented Generation for Knowledge-Intensive Tasks
 
+- Paper: Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+- Authors: Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich Küttler, Mike Lewis, Wen-tau Yih, Tim Rocktäschel, Sebastian Riedel, Douwe Kiela
+- ArXiv: https://arxiv.org/abs/2005.11401
+- Presenter: Ash Ren
+
+---
+
 ## Background
 - Large pre-trained language models (LLMs) encode vast amounts of factual knowledge within their parameters.  
 - **The challenge:** While they excel at many NLP tasks, LLMs have inherent limitations:  
