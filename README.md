@@ -37,31 +37,19 @@
     - All previously generated tokens $y_{1:i-1}$  
   - Implemented using **BART-large**, a sequence-to-sequence (seq2seq) transformer that encodes the combined input `[x ; z]` and decodes the output sequence.
 
-
-
-### Variable Definitions
-
-| Symbol | Meaning |
-|:-------|:---------|
-| $x$ | Input query or question |
-| $z$ | Retrieved document or passage |
-| $y$ | Target output sequence |
-| $y_i$ | Token generated at step *i* |
-| $y_{1:i-1}$ | Sequence of all tokens generated before step *i* |
-| $\eta$ | Retriever parameters |
-| $\theta$ | Generator parameters |
-
-
 ---
 
 ## RAG Variants
 ### 1. RAG-Sequence
-- The model retrieves a set of relevant documents and uses **that set of documents to generate the entire output sequence**.  
+- The model retrieves a set of relevant documents and uses that set to generate the entire output sequence through marginalization at the sequence level.
 
 **How it works:**
-1. The model retrieves the top-K documents relevant to the query.  
-2. Each retrieved document is treated as a latent variable $z$. The model then generates a full output sequence conditioned on that document and calculates the probability of producing that sequence $p(y∣x,z)$ given the input query and document. 
-3. After generating K complete sequences, the model marginalizes over the documents by weighting each sequence according to the document’s retrieval probability $p(z | x)$ and summing these weighted probabilities to get the final probability of the complete output sequence $p(y | x)$.
+
+1. The model retrieves the top-K documents relevant to the input query.  
+2. Each retrieved document is treated as a latent variable and is used to generate an entire output sequence.  
+3. For each document, the model computes the probability of generating every token in the sequence conditioned on the input query, the same retrieved document, and all previously generated tokens.  
+4. The probability of the complete sequence for a given document is obtained by multiplying the probabilities of all generated tokens: $p_\theta(y|x, z) = \prod_{i=1}^N p_\theta(y_i|x, z, y_{1:i-1})$  
+5. Finally, the model marginalizes over all retrieved documents by weighting each document’s sequence-level probability by its retrieval probability, $p_\eta(z|x)$, and summing across all K documents to obtain the final probability of the output sequence.
 
 **Mathematically:**
 
@@ -72,8 +60,7 @@ $$
 **Key insight:** One document conditions the entire generation; marginalization happens at the sequence level.
 
 **Use case:** Works well when most of the required information is contained in one or a few documents.  
-**Limitation:** Less effective when information is distributed across multiple sources.  
-**Computation:** Requires K full sequence generations (one per retrieved document).  
+**Limitation:** Less effective when information is distributed across multiple sources.   
 
 ---
 
@@ -81,10 +68,13 @@ $$
 - The model allows **different retrieved documents to influence each token** in the generated output.  
 - Instead of treating one document as the latent variable for the whole sequence, each token can draw from a different document.
 
+
 **How it works:**
 1. The model retrieves the top-K relevant documents for the query.  
-2. The model generates the output token by token. At each token position $y_i$, the model computes the probability of that token for each document $p(y_i | x, z, y_{1:i-1})$ which is conditioned on the input query, the retrieved document, and the previously generated tokens.
-3. Each document’s probability distribution is weighted by its retrieval probability $p(z | x)$ and summed to get the final probability distribution for the next token. The most likely token is selected, and the process repeats for the next token.  
+2. The model generates the output token by token. At each token position $y_i$, the model computes the probability of that token for each document $p(y_i | x, z, y_{1:i-1})$, which is conditioned on the input query, the retrieved document, and the previously generated tokens.  
+3. For the current token $y_i$, the model marginalizes over all retrieved documents by weighting each document’s token probability $p(y_i | x, z, y_{1:i-1})$ by its retrieval probability $p_\eta(z|x)$ and summing these contributions to obtain the final probability distribution for that token.  
+4. The process repeats for the next token until the sequence is complete.  
+5. The probability of the complete output sequence is obtained by multiplying the marginalized token probabilities across all token positions.
 
 **Mathematically:**
 
@@ -96,19 +86,10 @@ $$
 
 **Use case:** Ideal when information is scattered across multiple passages and needs to be integrated throughout the answer.  
 **Limitation:** Computationally expensive, since it performs K forward passes per token (K × N computations for a sequence of length N).  
-**Computation:** Requires K probability computations at each of N token generation steps.
 
 ---
 
 ## RAG Algorithm Pseudocode
-
-**Pseudocode / Algorithmic Overview**  
-- RAG combines a learned document retriever with a generative seq2seq model. Each retrieved document is treated as a latent variable, and the model marginalizes over these documents to produce the final output. RAG-Sequence marginalizes at the sequence level, while RAG-Token marginalizes at the token level.  
-
-**Difference from Previous Methods**  
-- Unlike previous retrieval-augmented models (e.g., REALM, ORQA) which focused on extractive QA, RAG integrates retrieval with sequence generation, allowing it to generate full answers and combine information across multiple documents.
-
---- 
 
 ### Algorithm 1: Retriever
 **Dense Passage Retriever (DPR) component**
@@ -196,7 +177,7 @@ $$
 ---
 
 <details>
-<summary>If you were tasked with building a RAG chatbot that is used for troubleshooting technical issues in a cloud infrastructure platform (like AWS or Azure), would you use RAG-Sequence or RAG-Token?</summary>
+<summary>If you were tasked with building a RAG chatbot that is used for troubleshooting technical issues in a cloud infrastructure platform (like AWS or Azure) and you could choose the underlying architecture, would you use RAG-Sequence or RAG-Token?</summary>
 
 Because each step of a troubleshooting answer might depend on different documentation sources — such as error codes, CLI commands, or configuration guides — RAG-Token’s token-level retrieval lets the model dynamically pull the most relevant technical details as it generates the response.
 </details>
@@ -252,8 +233,28 @@ Improving the generation component would be less efficient. Retraining or fine-t
 - **Reduced Hallucinations & Improved Interpretability:** Grounded generation in retrieved documents leads to more factual, specific outputs and provides visible sources.  
 - **Foundation for Modern AI:** Inspired retrieval-augmented systems like ChatGPT with browsing, Perplexity AI, and enterprise RAG solutions; set the standard for hybrid parametric/non-parametric models.
 
-
 --- 
+
+### Variable Definitions
+| Symbol | Meaning |
+|:-------|:---------|
+| $x$ | Input query or question |
+| $z$ | Retrieved document or passage |
+| $Z$ | Set of all documents in the index |
+| $y$ | Target output sequence |
+| $y_i$ | Token generated at step *i* |
+| $y_{1:i-1}$ | Sequence of all tokens generated before step *i* |
+| $N$ | Length of the output sequence (number of tokens) |
+| $K$ | Number of documents retrieved (top-K) |
+| $\eta$ | Retriever parameters |
+| $\theta$ | Generator parameters |
+| $p_\eta(z \mid x)$ | Retriever probability: likelihood of document $z$ being relevant to query $x$ |
+| $p_\theta(y_i \mid x, z, y_{1:i-1})$ | Generator probability: likelihood of token $y_i$ given query $x$, document $z$, and previous tokens |
+| $q(x)$ | Query representation (dense vector) encoded by BERT query encoder |
+| $d(z)$ | Document representation (dense vector) encoded by BERT document encoder |
+| $\text{top-k}(p(\cdot \mid x), Z)$ | Set of top-K documents with highest retrieval probability from document set $Z$ |
+
+---
 
 ## Citation
 
