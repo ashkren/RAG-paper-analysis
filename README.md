@@ -46,6 +46,12 @@
 
 ---
 
+## RAG Diagram
+
+![RAG Diagram](rag_diagram.png)
+
+---
+
 ## RAG Variants
 ### 1. RAG-Sequence
 - The model retrieves a set of relevant documents and uses that set to generate the entire output sequence through marginalization at the sequence level.
