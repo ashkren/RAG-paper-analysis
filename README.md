@@ -231,8 +231,7 @@ Improving the generation component would be less efficient. Retraining or fine-t
 - **Novel Hybrid Architecture:** First end-to-end system combining learned retrieval with seq2seq generation, using both parametric (model weights) and non-parametric (retrieved documents) memory.  
 - **Domain-Specific Adaptation:** By utilizing domain-specific documents, RAG can generate accurate answers for specialized areas without retraining.    
 - **Reduced Hallucinations & Improved Interpretability:** Grounded generation in retrieved documents leads to more factual, specific outputs and provides visible sources.  
-- **Foundation for Modern AI:** Inspired retrieval-augmented systems like ChatGPT with browsing, Perplexity AI, and enterprise RAG solutions; set the standard for hybrid parametric/non-parametric models.
-
+- **Foundation for Modern AI:** Set the standard for hybrid parametric/non-parametric models; inspired ChatGPT browsing, Perplexity AI, enterprise solutions, and advanced variants like multi-modal and agentic RAG.
 --- 
 
 ### Variable Definitions
