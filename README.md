@@ -276,11 +276,11 @@ Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., … Kie
 ## Other Resources
 
 - Code Demo: https://colab.research.google.com/drive/1J4vv3AuKSaLhY6fdgtIcbYEPmkJivJE-?usp=sharing
-- https://github.com/NirDiamant/RAG_Techniques/tree/main?tab=readme-ov-file
-- https://www.geeksforgeeks.org/nlp/retrieval-augmented-generation-rag-for-knowledge-intensive-nlp-tasks/#
-- https://github.com/Danielskry/Awesome-RAG
-- https://www.geeksforgeeks.org/nlp/rag-architecture/
-- https://www.databricks.com/glossary/retrieval-augmented-generation-rag
+- Repository containing code notebooks of various RAG techniques and architectures: https://github.com/NirDiamant/RAG_Techniques/tree/main?tab=readme-ov-file
+- Summary of the paper: https://www.geeksforgeeks.org/nlp/retrieval-augmented-generation-rag-for-knowledge-intensive-nlp-tasks/
+- Repository containg a curated list of RAG resources, tools, and research: https://github.com/Danielskry/Awesome-RAG
+- Explanation of RAG architecture and workflow: https://www.geeksforgeeks.org/nlp/rag-architecture/
+- Glossary overview and practical definition of RAG: https://www.databricks.com/glossary/retrieval-augmented-generation-rag
 
 
 
