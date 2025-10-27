@@ -190,7 +190,7 @@ $$
 ---
 
 <details>
-<summary>If you were tasked with building a RAG chatbot that is used for troubleshooting technical issues in a cloud infrastructure platform (like AWS or Azure) and you could choose the underlying architecture, would you use RAG-Sequence or RAG-Token?</summary>
+<summary>Question 1: If you were tasked with building a RAG chatbot that is used for troubleshooting technical issues in a cloud infrastructure platform (like AWS or Azure) and you could choose the underlying architecture, would you use RAG-Sequence or RAG-Token?</summary>
 
 Because each step of a troubleshooting answer might depend on different documentation sources — such as error codes, CLI commands, or configuration guides — RAG-Token’s token-level retrieval lets the model dynamically pull the most relevant technical details as it generates the response.
 </details>
@@ -228,12 +228,10 @@ Because each step of a troubleshooting answer might depend on different document
 --- 
 
 <details>
-<summary> If you had to improve RAG's performance with limited resources, which component would you focus on — retrieval or generation — and why?</summary>
+<summary> Question 2: If you've already uploaded relevant documents to your RAG system but performance is still poor, which component would you focus on improving — retrieval or generation — and why?</summary>
 
-With limited resources, improving the retrieval component would yield the greatest impact.
-RAG’s performance depends primarily on the quality and relevance of the retrieved documents — even a strong generator cannot produce accurate or factual answers without reliable context. Enhancing retrieval through better indexing, chunking, or embedding quality directly improves the grounding information the generator relies on.
-
-Improving the generation component would be less efficient. Retraining or fine-tuning a generator is computationally expensive, involves large parameter updates, and typically produces only small gains. In contrast, improving retrieval quality is more cost-effective and leads to larger downstream improvements in factual accuracy.
+You should focus on retrieval. Even with prompt engineering or an improved generator model, if the retriever returns irrelevant or low-quality documents, the system lacks adequate context to generate accurate responses. The principle of "garbage in, garbage out" applies directly here.
+Improving retrieval through better embeddings, chunking strategies, or reranking mechanisms directly enhances the quality of context provided to the generator. Once high-quality documents are retrieved, even a relatively simple generator with effective prompting can produce accurate answers. However, the reverse is not true. No amount of generation improvements can compensate for poor retrieval performance.
 </details>
 
 
