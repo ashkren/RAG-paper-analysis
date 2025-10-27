@@ -243,6 +243,8 @@ Improving retrieval through better embeddings, chunking strategies, or reranking
 - **Domain-Specific Adaptation:** By utilizing domain-specific documents, RAG can generate accurate answers for specialized areas without retraining.    
 - **Reduced Hallucinations & Improved Interpretability:** Grounded generation in retrieved documents leads to more factual, specific outputs and provides visible sources.  
 - **Foundation for Modern AI:** Set the standard for hybrid parametric/non-parametric models; inspired ChatGPT browsing, Perplexity AI, enterprise solutions, and advanced variants like multi-modal and agentic RAG.
+- **Influence on Subsequent Research:** Building on RAG’s foundation, later models like Fusion-in-Decoder (FiD) improved document fusion, and Self-RAG added self-reflective retrieval mechanisms that evaluate and filter context for relevance and factuality.
+  
 --- 
 
 ### Variable Definitions
@@ -279,6 +281,7 @@ Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., … Kie
 - Repository containg a curated list of RAG resources, tools, and research: https://github.com/Danielskry/Awesome-RAG
 - Explanation of RAG architecture and workflow: https://www.geeksforgeeks.org/nlp/rag-architecture/
 - Glossary overview and practical definition of RAG: https://www.databricks.com/glossary/retrieval-augmented-generation-rag
+- Self-RAG, a self-reflective RAG framework that evaluates and filters retrieved documents based on their usefulness and relevance during generation: https://arxiv.org/abs/2310.11511
 
 
 
