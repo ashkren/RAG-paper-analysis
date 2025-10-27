@@ -281,7 +281,8 @@ Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., … Kie
 - Repository containg a curated list of RAG resources, tools, and research: https://github.com/Danielskry/Awesome-RAG
 - Explanation of RAG architecture and workflow: https://www.geeksforgeeks.org/nlp/rag-architecture/
 - Glossary overview and practical definition of RAG: https://www.databricks.com/glossary/retrieval-augmented-generation-rag
-- Self-RAG, a self-reflective RAG framework that evaluates and filters retrieved documents based on their usefulness and relevance during generation: https://arxiv.org/abs/2310.11511
+- Self-RAG: https://arxiv.org/abs/2310.11511
+- Fusion in Decoder: https://arxiv.org/pdf/2007.01282
 
 
 
