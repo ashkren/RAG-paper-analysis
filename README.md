@@ -102,6 +102,41 @@ $$
 
 ---
 
+## Training
+
+- **Joint Training:** The retriever and generator are trained together end-to-end without direct supervision on which documents to retrieve.
+- **Objective:** Minimize the negative marginal log-likelihood of target outputs: $-\log p(y_j|x_j)$ using stochastic gradient descent with Adam optimizer.
+- **Parameter Updates:**
+  - **Document Encoder (BERT_d):** Kept frozen during training to avoid the computational cost of periodically reindexing all documents.
+  - **Query Encoder (BERT_q) and Generator (BART):** Both are fine-tuned on the training corpus.
+- **Key Insight:** Unlike REALM, which updates the document encoder during pre-training, RAG achieves strong performance without updating the document index, making training more efficient.
+
+---
+
+## Decoding
+
+### RAG-Token Decoding
+- **Approach:** Uses standard autoregressive beam search with a modified transition probability that marginalizes over retrieved documents at each token position.
+- **Transition Probability:** 
+  $$p'_\theta(y_i|x,y_{1:i-1}) = \sum_{z \in \text{top-k}(p(\cdot|x))} p_\eta(z|x) \; p_\theta(y_i|x,z,y_{1:i-1})$$
+- **Implementation:** Plug this marginalized probability into a standard beam decoder to generate the output sequence token by token.
+
+### RAG-Sequence Decoding
+- **Challenge:** The likelihood $p(y|x)$ does not decompose into per-token probabilities, so standard beam search cannot be directly applied.
+- **Solution:** Run separate beam searches for each of the K retrieved documents, scoring hypotheses with $p_\theta(y_i|x,z,y_{1:i-1})$.
+- **Two Decoding Strategies:**
+  - **Thorough Decoding:** 
+    - Collect all hypotheses $Y$ from all document beams.
+    - For hypotheses that didn't appear in all beams, run additional forward passes.
+    - Compute final probability by weighting each document's generation probability with $p_\eta(z|x)$ and summing across all documents.
+    - More accurate but computationally expensive for longer sequences.
+  - **Fast Decoding:**
+    - Approximates $p_\theta(y|x,z_i) \approx 0$ for hypotheses not generated during beam search from document $z_i$.
+    - Avoids additional forward passes after generating the candidate set $Y$.
+    - More efficient but slightly less accurate.
+
+---
+
 ## RAG Algorithm Pseudocode
 
 ### Algorithm 1: Retriever
