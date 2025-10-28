@@ -305,7 +305,7 @@ Improving retrieval through better embeddings, chunking strategies, or reranking
 
 ## Citation
 
-Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., … Kiela, D. (2021). Retrieval-augmented generation for knowledge-intensive NLP tasks. Retrieved from https://arxiv.org/abs/2005.11401 
+Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., Küttler, H., Lewis, M., Yih, W., Rocktäschel, T., Riedel, S., & Kiela, D. (2021, April 12). Retrieval-augmented generation for knowledge-intensive NLP tasks. arXiv.org. https://arxiv.org/abs/2005.11401 
 
 
 ## Other Resources
